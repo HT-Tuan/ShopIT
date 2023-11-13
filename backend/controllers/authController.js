@@ -4,9 +4,16 @@ const catchAsyncErrors = require('../middlewares/catchAsyncErrors');
 const sendToken = require('../utils/jwtToken');
 const sendEmail = require('../utils/sendEmail');
 const crypto = require('crypto');
+const cloudinary = require('cloudinary');
 
 // Register a user => /api/v1/register
 exports.registerUser = catchAsyncErrors(async (req, res, next) => {
+    const result = await cloudinary.v2.uploader.upload(req.body.avatar, {
+        folder: 'avatars',
+        width: 150,
+        crop: 'scale'
+    })
+
     const { name, email, password } = req.body;
 
     const user = await User.create({
@@ -14,12 +21,12 @@ exports.registerUser = catchAsyncErrors(async (req, res, next) => {
         email,
         password,
         avatar: {
-            public_id: 'avatars/1629478749',
-            url: 'https://i.9mobi.vn/cf/Images/tt/2021/8/20/anh-avatar-dep-45.jpg'
+            public_id: result.public_id,
+            url: result.secure_url
         }
     })
 
-    sendToken(user, 200, res); 
+    sendToken(user, 200, res);
 })
 
 // Login User => /api/v1/login
@@ -59,7 +66,7 @@ exports.forgotPassword = catchAsyncErrors(async (req, res, next) => {
 
     await user.save({ validateBeforeSave: false });
     // Create reset password url
-    const resetUrl = `${req.protocol}://${req.get('host')}/api/v1/password/reset/${resetToken}`;
+    const resetUrl = `${process.env.FRONTEND_URL}/password/reset/${resetToken}`;
     const message = `Your password reset token is as follow:\n\n${resetUrl}\n\nIf you have not requested this email, then ignore it.`
     try {
         await sendEmail({
